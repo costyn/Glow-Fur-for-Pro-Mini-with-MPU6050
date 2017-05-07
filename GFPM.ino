@@ -1,9 +1,7 @@
 /*
    Heavily modified from https://learn.adafruit.com/animated-neopixel-gemma-glow-fur-scarf
 
-   This code will not work on a Gemma, it's too big. It will work on any Atmel with at least 16K memory.
-
-   Blame: Costyn van Dongen
+   By: Costyn van Dongen
 
    Future ideas:
    - choose 1 color, brightenall to max, then fade to min
@@ -16,11 +14,10 @@
 #include <TaskScheduler.h>
 #include "I2Cdev.h"
 #include "MPU6050_6Axis_MotionApps20.h"
-//#include <avr/pgmspace.h>
-//#include <EEPROM.h>
+//#include <EEPROM.h>  // I want to write the pallettes to EEPROM eventually
 
 
-// #define DEBUG
+#define DEBUG
 
 #ifdef DEBUG
 #define DEBUG_PRINT(x)       Serial.print (x)
@@ -45,11 +42,11 @@
 #define PALETTE_SPEED  30   // How fast the palette colors move.   Higher delay = slower movement.
 #define FIRE_SPEED  85   // Fire Speed; delay in millseconds. Higher delay = slower movement.
 #define CYLON_SPEED 25  // Cylon Speed; delay in millseconds. Higher delay = slower movement.
-#define FADEGLITTER_SPEED 10  // Cylon Speed; delay in millseconds. Higher delay = slower movement.
-#define DISCOGLITTER_SPEED 20  // Cylon Speed; delay in millseconds. Higher delay = slower movement.
+#define FADEGLITTER_SPEED 10  // delay in millseconds. Higher delay = slower movement.
+#define DISCOGLITTER_SPEED 20  // delay in millseconds. Higher delay = slower movement.
 
 CRGB leds[NUM_LEDS];
-byte ledMode = 13 ; // Which mode do we start with
+byte ledMode = 0 ; // Which mode do we start with
 unsigned long lastButtonChange = 0; // button debounce timer.
 
 const char *routines[] = {
@@ -69,10 +66,8 @@ const char *routines[] = {
   "flashbpm",   // 13
   "pulse",      // 14
   "pulsestatic",// 15
-  //  "pulse2",     // 16
-  //  "pulsesuck",  // 17
-  "racers",     // 18
-  "black"       // 19
+  "racers",     // 16
+  "black"       // 17
 };
 #define NUMROUTINES (sizeof(routines)/sizeof(char *)) //array size  
 
@@ -198,10 +193,26 @@ void setup() {
 
 }
 
-void loop() {
-  runner.execute();
-}
 
+
+#define HEARTBEAT_INTERVAL 1000  // 1 second
+
+void loop() {
+  static long lastHeartbeat = millis() ;
+
+  if ( millis() - lastHeartbeat > HEARTBEAT_INTERVAL ) {
+    DEBUG_PRINTLN(F(".")) ;
+    lastHeartbeat = millis() ;
+  }
+
+  runner.execute();
+
+  /* 
+      taskGetDMPData.enableIfNot() ;
+      taskGetYPRAccel.enableIfNot() ;
+      taskLedModeSelect.enableIfNot() ;
+  */
+}
 
 
 
@@ -212,53 +223,64 @@ void ledModeSelect() {
   if ( ledMode >= 0 and ledMode <= 6 ) {
     FillLEDsFromPaletteColors() ;
     taskLedModeSelect.setInterval( PALETTE_SPEED ) ;
+    taskGetDMPData.enableIfNot() ;
 
     // FastLED Fire2012 split down the middle, so the fire flows "down" from the neck of the scarf to the ends
   } else if ( strcmp(routines[ledMode], "fire2012") == 0 ) {
     Fire2012() ;
     taskLedModeSelect.setInterval( FIRE_SPEED ) ;
+    taskGetDMPData.disable() ;
 
     // Cylon / KITT / Larson scanner with fading tail and slowly changing color
   } else if ( strcmp(routines[ledMode], "cylon") == 0 ) {
-    taskLedModeSelect.setInterval( CYLON_SPEED ) ;
     cylon() ;
+    taskLedModeSelect.setInterval( CYLON_SPEED ) ;
+    taskGetDMPData.enableIfNot() ;
 
     // Cylon / KITT / Larson scanner with 4 "movers"
   } else if ( strcmp(routines[ledMode], "cylonmulti") == 0 ) {
-    taskLedModeSelect.setInterval( CYLON_SPEED ) ;
     cylonMulti() ;
+    taskLedModeSelect.setInterval( CYLON_SPEED ) ;
+    taskGetDMPData.disable() ;
 
     // Fade glitter
   } else if ( strcmp(routines[ledMode], "fglitter") == 0 ) {
-    taskLedModeSelect.setInterval( FADEGLITTER_SPEED ) ;
     fadeGlitter() ;
+    taskLedModeSelect.setInterval( FADEGLITTER_SPEED ) ;
+    taskGetDMPData.disable() ;
 
     //  Disco glitter
   } else if ( strcmp(routines[ledMode], "dglitter") == 0 ) {
-    taskLedModeSelect.setInterval( DISCOGLITTER_SPEED ) ;
     discoGlitter() ;
+    taskLedModeSelect.setInterval( DISCOGLITTER_SPEED ) ;
+    taskGetDMPData.disable() ;
 
     // With thanks to Hans for the strobe idea https://www.tweaking4all.nl/hardware/arduino/adruino-led-strip-effecten/#strobe
   } else if ( strcmp(routines[ledMode], "strobe") == 0 ) {
     //    setInterval is done in the subroutine itself
     strobe( 0, 10 ) ;
+    taskGetDMPData.enableIfNot() ;
 
   } else if ( strcmp(routines[ledMode], "flashbpm") == 0 ) {
     strobe( 130, 2 ) ;
+    taskGetDMPData.enableIfNot() ;
 
     // Black - off
   } else if ( strcmp(routines[ledMode], "black") == 0 ) {
     fill_solid(leds, NUM_LEDS, CRGB::Black);
     FastLED.show();
     taskLedModeSelect.setInterval( 500 ) ;  // long because nothing is going on anyways.
+    taskGetDMPData.disable() ;
 
   } else if ( strcmp(routines[ledMode], "pulse") == 0 ) {
     pulse() ;
     taskLedModeSelect.setInterval( 20 ) ;
+    taskGetDMPData.disable() ;
 
   } else if ( strcmp(routines[ledMode], "pulsestatic") == 0 ) {
     pulse_static() ;
     taskLedModeSelect.setInterval( 25 ) ;
+    taskGetDMPData.disable() ;
 
     /*
       } else if ( strcmp(routines[ledMode], "pulse2") == 0 ) {
@@ -271,15 +293,16 @@ void ledModeSelect() {
 
   } else if ( strcmp(routines[ledMode], "racers") == 0 ) {
     racingLeds() ;
-    taskLedModeSelect.setInterval( 5 ) ;
+    taskLedModeSelect.setInterval( 15 ) ;
+    taskGetDMPData.disable() ;
+
   }
 }
 
 
 
 
-
-// interrupt triggered button press with a very simple debounce (discard multiple button presses < 500ms)
+// interrupt triggered button press with a very simple debounce (discard multiple button presses < 300ms)
 void shortKeyPress() {
   if ( millis() - lastButtonChange > 300 ) {
     ledMode++;
@@ -297,9 +320,6 @@ void shortKeyPress() {
     //    DEBUG_PRINTLN(F("Too short an interval") ) ;
   }
 }
-
-
-
 
 
 

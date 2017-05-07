@@ -16,21 +16,12 @@ void dmpDataReady() {
   mpuInterrupt = true;
 }
 
+
+
 void getDMPData() {
 
-  /*
-    while (!mpuInterrupt && fifoCount < packetSize) {
-      // printDebugging() ;
-
-      // if you are really paranoid you can frequently test in between other
-      // stuff to see if mpuInterrupt is true, and if so, "break;" from the
-      // while() loop to immediately process the MPU data
-      // .
-    }
-  */
-
   if ( fifoCount > packetSize ) {
-    DEBUG_PRINTLN(F("yolo!!"));
+    DEBUG_PRINTLN(F("yo!"));
   }
 
   mpuInterrupt = false;
@@ -45,8 +36,11 @@ void getDMPData() {
     while (fifoCount < packetSize) fifoCount = mpu.getFIFOCount();
     mpu.getFIFOBytes(fifoBuffer, packetSize);
     fifoCount -= packetSize;
-  }
+  } 
 }
+
+
+
 
 // display Euler angles in degrees
 void getYPRAccel() {
@@ -74,9 +68,12 @@ void getYPRAccel() {
 }
 
 
+
 bool isShaking() {
   return activityLevel() > 6000 ;
 }
+
+
 
 #define POWER 256
 int activityLevel() {
@@ -130,7 +127,18 @@ void printDebugging() {
   DEBUG_PRINT(F("\t"));
   DEBUG_PRINT(isYawReliable());
   DEBUG_PRINT(F("\t"));
-  //  DEBUG_PRINT( mpu.getFIFOCount() ) ;
+  DEBUG_PRINT( taskGetDMPData.getRunCounter() ) ;
+  DEBUG_PRINT("\t");
+  DEBUG_PRINT( freeRam() ) ;
   DEBUG_PRINTLN() ;
 }
 
+
+
+
+int freeRam ()
+{
+  extern int __heap_start, *__brkval;
+  int v;
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval);
+}
