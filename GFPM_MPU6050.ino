@@ -14,6 +14,7 @@
 volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
 void dmpDataReady() {
   mpuInterrupt = true;
+  //  DEBUG_PRINTLN(F(":"));
 }
 
 
@@ -22,6 +23,7 @@ void getDMPData() {
 
   if ( fifoCount > packetSize ) {
     DEBUG_PRINTLN(F("yo!"));
+    mpu.resetFIFO();
   }
 
   mpuInterrupt = false;
@@ -36,7 +38,7 @@ void getDMPData() {
     while (fifoCount < packetSize) fifoCount = mpu.getFIFOCount();
     mpu.getFIFOBytes(fifoBuffer, packetSize);
     fifoCount -= packetSize;
-  } 
+  }
 }
 
 
@@ -87,7 +89,7 @@ int activityLevel() {
 
 
 
-bool isTilted( int *angle ) {
+bool isTilted() {
 #define TILTED_AT_DEGREES 10
   return ( 90 - TILTED_AT_DEGREES > max(yprY, yprZ) or yprY > 90 + TILTED_AT_DEGREES ) ;
 }

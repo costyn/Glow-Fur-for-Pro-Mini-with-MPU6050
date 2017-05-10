@@ -4,12 +4,12 @@ void FillLEDsFromPaletteColors() {
 
   const CRGBPalette16 palettes[] = { RainbowColors_p, RainbowStripeColors_p, OceanColors_p, HeatColors_p, PartyColors_p, CloudColors_p, ForestColors_p } ;
 
-  if( isMpuUp() ) {
+  if ( isMpuUp() ) {
     flowDir = 1 ;
   } else if ( isMpuDown() ) {
     flowDir = -1 ;
   }
-  
+
   startIndex += flowDir ;
 
   uint8_t colorIndex = startIndex ;
@@ -56,24 +56,10 @@ void discoGlitter() {
 #define ENDHUE 255
 
 void cylon() {
-//  static uint8_t hueAdder = 1 ;  // set to higher for faster color cycling
-//  static uint8_t hue = STARTHUE;
   static uint8_t ledPosAdder = 1 ;
   static uint8_t ledPos = 0;
 
-  leds[ledPos] = CHSV( map( yprX, 0, 360, 0, 255 ) , 255, 255);
-//  leds[ledPos] = CHSV(hue, 255, 255);
-
-/*  // If current LED position is divisible by 5, increase hue by hueAdder
-  if ( ledPos % 10 == 0 ) {
-    hue += hueAdder ;
-  }
-  // if we reach ENDHUE or STARTHUE, start cycling back.
-  if ( hue > ENDHUE or hue == STARTHUE ) {
-    hueAdder *= -1 ;
-  }
-
-*/
+  leds[ledPos] = CHSV( map( yprX, 0, 360, STARTHUE, ENDHUE ) , 255, 255);
 
   ledPos += ledPosAdder ;
   if ( ledPos == 0 or ledPos == NUM_LEDS ) {
@@ -85,20 +71,35 @@ void cylon() {
   fadeall(230);
 }
 
+#define POS1 0
+#define POS2 round(NUM_LEDS/3)
+#define POS3 round(NUM_LEDS/3) + round(NUM_LEDS/3)
+#define POS4 NUM_LEDS - 2
+
 void cylonMulti() {
-  static uint8_t ledPos[] = {0, 29, 48, 87}; // Starting position
+  static uint8_t ledPos[] = {POS1, POS2, POS3, POS4}; // Starting position
   static int ledAdd[] = {1, 1, 1, 1}; // Starting direction
+  static byte hue = 0 ;
 
   for (int i = 0; i < 4; i++) {
     leds[ledPos[i]] = CHSV(40 * i, 255, 255);
+    // Turn around at ends:
     if ( (ledPos[i] + ledAdd[i] == 0) or (ledPos[i] + ledAdd[i] == NUM_LEDS) ) {
       ledAdd[i] *= -1 ;
     }
-    ledPos[i] += ledAdd[i] ;
+    /*    Circular:
+           if ( ledPos[i] + ledAdd[i] < 0) {
+          ledPos[i] = NUM_LEDS - 1 ;
+        } else if (ledPos[i] + ledAdd[i] == NUM_LEDS) {
+          ledPos[i] = 0 ;
+        } else {
+          ledPos[i] += ledAdd[i] ;
+        }
+    */
   }
 
   FastLED.show();
-  fadeall(180);
+  fadeall(200);
 }
 
 
@@ -146,13 +147,24 @@ void strobe( int bpm, uint8_t numStrobes ) {
   }
 }
 
+#define S_SENSITIVITY 3000  // lower for less movement to trigger accelerometer routines
+
+void strobe2() {
+  if ( activityLevel() > S_SENSITIVITY ) {
+    fill_solid(leds, NUM_LEDS, CHSV( map( yprX, 0, 360, 0, 255 ), 255, 255)); // yaw for color
+  } else {
+    fill_solid(leds, NUM_LEDS, CRGB::Black);
+  }
+  FastLED.show();
+}
+
 void pulse() {
   static uint8_t startPixelPos = 0 ;
   uint8_t endPixelPos = startPixelPos + 20 ;
   uint8_t middlePixelPos = endPixelPos - round( (endPixelPos - startPixelPos) / 2 ) ;
 
   uint8_t hue = map( yprX, 0, 360, 0, 255 ) ;
-  
+
   static int brightness = 0;
   static int brightAdder = 15;
   static int brightStartNew = random8(1, 30) ;
@@ -410,11 +422,11 @@ void Fire2012()
 }
 
 void racingLeds() {
-  static long loopCounter = 0 ;
-  static uint8_t racer[] = {0, 1, 2}; // Starting positions
-  static int racerDir[] = {1, 1, 1}; // Current direction
-  static int racerSpeed[] = { random8(1, 4), random8(1, 4) , random8(1, 4) }; // Starting speed
-  CRGB racerColor[] = { CRGB::Red, CRGB::Blue, CRGB::White }; // Racer colors
+  //  static long loopCounter = 0 ;
+  static uint8_t racer[] = {0, 1, 2, 3}; // Starting positions
+  static int racerDir[] = {1, 1, 1, 1}; // Current direction
+  static int racerSpeed[] = { random8(1, 4), random8(1, 4) , random8(1, 4), random8(1, 4) }; // Starting speed
+  const CRGB racerColor[] = { CRGB::Red, CRGB::Blue, CRGB::White, CRGB::Orange }; // Racer colors
 
 #define NUMRACERS sizeof(racer) //array size  
 
@@ -423,20 +435,68 @@ void racingLeds() {
   for ( int i = 0; i < NUMRACERS ; i++ ) {
     leds[racer[i]] = racerColor[i]; // Assign color
 
-    // If "loopcounter" is evenly divisible by 'speed' then check if we've reached the end (if so, reverse), and do a step
-    if ( loopCounter % racerSpeed[i] == 0 ) {
-      if ( (racer[i] + racerDir[i] >= NUM_LEDS) or (racer[i] + racerDir[i] <= 0) ) {
-        racerDir[i] *= -1 ;
+    // If taskLedModeSelect.getRunCounter() is evenly divisible by 'speed' then check if we've reached the end (if so, reverse), and do a step
+    if ( ( taskLedModeSelect.getRunCounter() % racerSpeed[i]) == 0 ) {
+      if ( racer[i] + racerDir[i] >= NUM_LEDS) {
+        racer[i] = 0 ;
+      } else {
+        racer[i] += racerDir[i] ;
       }
-      racer[i] += racerDir[i] ;
+      /*
+            if ( (racer[i] + racerDir[i] >= NUM_LEDS) or (racer[i] + racerDir[i] <= 0) ) {
+              racerDir[i] *= -1 ;
+            }
+            racer[i] += racerDir[i] ;
+      */
     }
 
-    if ( loopCounter % 40 ) {
-      racerSpeed[i] = random8(2, 4) ;  // Randomly speed up or slow down
+    if ( (taskLedModeSelect.getRunCounter() % 40 ) == 0 ) {
+      racerSpeed[i] = random8(2, 6) ;  // Randomly speed up or slow down
     }
   }
 
-  loopCounter++ ;
-  
+  //  loopCounter++ ;
+
+  FastLED.show();
+}
+
+#define MAX_NEG_ACCEL -5000
+#define MAX_POS_ACCEL 5000
+
+void waveYourArms() {
+  // Use yaw for color; use accelZ for brightness
+  fill_solid(leds, NUM_LEDS, CHSV( map( yprX, 0, 360, 0, 255 ) , 255, map( constrain(aaRealZ, MAX_NEG_ACCEL, MAX_POS_ACCEL), MAX_NEG_ACCEL, MAX_POS_ACCEL, 20, 255 )) );
+  FastLED.show();
+}
+
+
+#define SENSITIVITY 2300  // lower for less movement to trigger
+
+void shakeIt() {
+  int startLed ;
+
+  if ( isMpuDown() ) {
+    startLed = 0 ;
+  } else if ( isMpuUp() ) {
+    startLed = NUM_LEDS - 1 ;
+  }
+
+  if ( activityLevel() > SENSITIVITY ) {
+    leds[startLed] = CHSV( map( yprX, 0, 360, 0, 255 ), 255, 255); // yaw for color
+  } else {
+    leds[startLed] = CHSV(0, 0, 0); // black
+    //    leds[] = leds[NUM_LEDS - 1] ;  // uncomment for circular motion
+  }
+
+  if ( isMpuDown() ) {
+    for (int i = NUM_LEDS - 2; i >= 0 ; i--) {
+      leds[i + 1] = leds[i];
+    }
+  } else if ( isMpuUp() ) {
+    for (int i = 0 ; i <= NUM_LEDS - 2 ; i++) {
+      leds[i] = leds[i + 1];
+    }
+  }
+
   FastLED.show();
 }

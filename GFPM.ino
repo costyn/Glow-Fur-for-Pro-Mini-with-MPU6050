@@ -17,7 +17,7 @@
 //#include <EEPROM.h>  // I want to write the pallettes to EEPROM eventually
 
 
-#define DEBUG
+// #define DEBUG
 
 #ifdef DEBUG
 #define DEBUG_PRINT(x)       Serial.print (x)
@@ -30,11 +30,11 @@
 #endif
 
 #define LED_PIN     12   // which pin your Neopixels are connected to
-#define NUM_LEDS    90   // how many LEDs you have
-#define BRIGHTNESS 200  // 0-255, higher number is brighter. 
+#define NUM_LEDS    120   // how many LEDs you have
+#define BRIGHTNESS 255  // 0-255, higher number is brighter. 
 #define SATURATION 255   // 0-255, 0 is pure white, 255 is fully saturated color
 #define STEPS        2   // How wide the bands of color are.  1 = more like a gradient, 10 = more like stripes
-#define BUTTON_PIN   3   // button is connected to pin 2 and GND
+#define BUTTON_PIN   3   // button is connected to pin 3 and GND
 #define COLOR_ORDER GRB  // Try mixing up the letters (RGB, GBR, BRG, etc) for a whole new world of color combinations
 #define LOOPSTART 0
 
@@ -45,8 +45,9 @@
 #define FADEGLITTER_SPEED 10  // delay in millseconds. Higher delay = slower movement.
 #define DISCOGLITTER_SPEED 20  // delay in millseconds. Higher delay = slower movement.
 
+
 CRGB leds[NUM_LEDS];
-byte ledMode = 0 ; // Which mode do we start with
+byte ledMode = 15 ; // Which mode do we start with
 unsigned long lastButtonChange = 0; // button debounce timer.
 
 const char *routines[] = {
@@ -67,7 +68,10 @@ const char *routines[] = {
   "pulse",      // 14
   "pulsestatic",// 15
   "racers",     // 16
-  "black"       // 17
+  "wave",       // 17
+  "shakeit",    // 18
+  "strobe2",    // 19
+  "black"       // 20
 };
 #define NUMROUTINES (sizeof(routines)/sizeof(char *)) //array size  
 
@@ -110,7 +114,7 @@ int yprZ = 0 ;
 
 void getDMPData() ; // prototype method
 void getYPRAccel() ; // prototype method
-Task taskGetDMPData( 1, TASK_FOREVER, &getDMPData);
+Task taskGetDMPData( 3, TASK_FOREVER, &getDMPData);
 Task taskGetYPRAccel( 10, TASK_FOREVER, &getYPRAccel);
 
 #ifdef DEBUG
@@ -156,13 +160,24 @@ void setup() {
   mpu.initialize();
   devStatus = mpu.dmpInitialize();
 
-  // Normal offsets
-  mpu.setXAccelOffset(-487);
-  mpu.setYAccelOffset(80);
-  mpu.setZAccelOffset(1566); // 1688 factory default for my test chip
-  mpu.setXGyroOffset(-38);
-  mpu.setYGyroOffset(1);
-  mpu.setZGyroOffset(-1);
+  // Gravitech Pro Micro
+  /*
+    mpu.setXAccelOffset(-487);
+    mpu.setYAccelOffset(80);
+    mpu.setZAccelOffset(1566); // 1688 factory default for my test chip
+    mpu.setXGyroOffset(-38);
+    mpu.setYGyroOffset(1);
+    mpu.setZGyroOffset(-1);
+  */
+
+  // Arduino Pro Micro
+  mpu.setXAccelOffset(-1614);
+  mpu.setYAccelOffset(-1131);
+  mpu.setZAccelOffset(2390); // 1688 factory default for my test chip
+  mpu.setXGyroOffset(69);
+  mpu.setYGyroOffset(20);
+  mpu.setZGyroOffset(-21);
+
 
   if (devStatus == 0) {
     mpu.setDMPEnabled(true);
@@ -183,7 +198,7 @@ void setup() {
 
   runner.addTask(taskGetDMPData);
   runner.addTask(taskGetYPRAccel);
-//  taskGetDMPData.enable() ;
+  //  taskGetDMPData.enable() ;
   taskGetYPRAccel.enable() ;
 
 #ifdef DEBUG
@@ -198,20 +213,20 @@ void setup() {
 #define HEARTBEAT_INTERVAL 1000  // 1 second
 
 void loop() {
+
+#ifdef DEBUG
   static long lastHeartbeat = millis() ;
+  static unsigned int heartBeatNumber = 0 ;
 
   if ( millis() - lastHeartbeat > HEARTBEAT_INTERVAL ) {
-    DEBUG_PRINTLN(F(".")) ;
+    DEBUG_PRINT(F(".")) ;
+    DEBUG_PRINTLN(heartBeatNumber) ;
     lastHeartbeat = millis() ;
+    heartBeatNumber++ ;
   }
+#endif
 
   runner.execute();
-
-  /* 
-      taskGetDMPData.enableIfNot() ;
-      taskGetYPRAccel.enableIfNot() ;
-      taskLedModeSelect.enableIfNot() ;
-  */
 }
 
 
@@ -293,9 +308,23 @@ void ledModeSelect() {
 
   } else if ( strcmp(routines[ledMode], "racers") == 0 ) {
     racingLeds() ;
-    taskLedModeSelect.setInterval( 15 ) ;
+    taskLedModeSelect.setInterval( 8 ) ;
     taskGetDMPData.disable() ;
 
+  } else if ( strcmp(routines[ledMode], "wave") == 0 ) {
+    waveYourArms() ;
+    taskLedModeSelect.setInterval( 15 ) ;
+    taskGetDMPData.enableIfNot() ;
+    
+  } else if ( strcmp(routines[ledMode], "shakeit") == 0 ) {
+    shakeIt() ;
+    taskLedModeSelect.setInterval( 10 ) ;
+    taskGetDMPData.enableIfNot() ;
+    
+  } else if ( strcmp(routines[ledMode], "strobe2") == 0 ) {
+    strobe2() ;
+    taskLedModeSelect.setInterval( 10 ) ;
+    taskGetDMPData.enableIfNot() ;
   }
 }
 
