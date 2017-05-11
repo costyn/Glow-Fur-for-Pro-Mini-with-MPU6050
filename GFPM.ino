@@ -31,15 +31,15 @@
 
 #define LED_PIN     12   // which pin your Neopixels are connected to
 #define NUM_LEDS    120   // how many LEDs you have
-#define BRIGHTNESS 255  // 0-255, higher number is brighter. 
-#define SATURATION 255   // 0-255, 0 is pure white, 255 is fully saturated color
-#define STEPS        2   // How wide the bands of color are.  1 = more like a gradient, 10 = more like stripes
-#define BUTTON_PIN   3   // button is connected to pin 3 and GND
+#define MAX_BRIGHT  255  // 0-255, higher number is brighter. 
+#define SATURATION  255   // 0-255, 0 is pure white, 255 is fully saturated color
+#define STEPS       2   // How wide the bands of color are.  1 = more like a gradient, 10 = more like stripes
+#define BUTTON_PIN  3   // button is connected to pin 3 and GND
 #define COLOR_ORDER GRB  // Try mixing up the letters (RGB, GBR, BRG, etc) for a whole new world of color combinations
 #define LOOPSTART 0
 
 #define LEDMODE_SELECT_DEFAULT_INTERVAL 50  // default scheduling time for LEDMODESELECT
-#define PALETTE_SPEED  30   // How fast the palette colors move.   Higher delay = slower movement.
+#define PALETTE_SPEED  15   // How fast the palette colors move.   Higher delay = slower movement.
 #define FIRE_SPEED  85   // Fire Speed; delay in millseconds. Higher delay = slower movement.
 #define CYLON_SPEED 25  // Cylon Speed; delay in millseconds. Higher delay = slower movement.
 #define FADEGLITTER_SPEED 10  // delay in millseconds. Higher delay = slower movement.
@@ -47,7 +47,7 @@
 
 
 CRGB leds[NUM_LEDS];
-byte ledMode = 15 ; // Which mode do we start with
+byte ledMode = 10 ; // Which mode do we start with
 unsigned long lastButtonChange = 0; // button debounce timer.
 
 const char *routines[] = {
@@ -130,7 +130,7 @@ Task taskPrintDebugging( 100, TASK_FOREVER, &printDebugging);
 void setup() {
   delay( 1000 ); // power-up safety delay
   FastLED.addLeds<WS2812B, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
-  FastLED.setBrightness(  BRIGHTNESS );
+  FastLED.setBrightness(  MAX_BRIGHT );
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), shortKeyPress, RISING);
 
@@ -170,13 +170,13 @@ void setup() {
     mpu.setZGyroOffset(-1);
   */
 
-  // Arduino Pro Micro
-  mpu.setXAccelOffset(-1614);
-  mpu.setYAccelOffset(-1131);
-  mpu.setZAccelOffset(2390); // 1688 factory default for my test chip
-  mpu.setXGyroOffset(69);
-  mpu.setYGyroOffset(20);
-  mpu.setZGyroOffset(-21);
+  // Arduino Pro Micro; hardware prototype v1
+  mpu.setXAccelOffset(-1515);
+  mpu.setYAccelOffset(-1121);
+  mpu.setZAccelOffset(2328); // 1688 factory default for my test chip
+  mpu.setXGyroOffset(47);
+  mpu.setYGyroOffset(9);
+  mpu.setZGyroOffset(-19);
 
 
   if (devStatus == 0) {
@@ -198,7 +198,6 @@ void setup() {
 
   runner.addTask(taskGetDMPData);
   runner.addTask(taskGetYPRAccel);
-  //  taskGetDMPData.enable() ;
   taskGetYPRAccel.enable() ;
 
 #ifdef DEBUG
@@ -239,12 +238,19 @@ void ledModeSelect() {
     FillLEDsFromPaletteColors() ;
     taskLedModeSelect.setInterval( PALETTE_SPEED ) ;
     taskGetDMPData.enableIfNot() ;
+    // Uses setBrightness
+
 
     // FastLED Fire2012 split down the middle, so the fire flows "down" from the neck of the scarf to the ends
   } else if ( strcmp(routines[ledMode], "fire2012") == 0 ) {
     Fire2012() ;
-    taskLedModeSelect.setInterval( FIRE_SPEED ) ;
-    taskGetDMPData.disable() ;
+    FastLED.setBrightness( MAX_BRIGHT ) ;
+    //    taskLedModeSelect.setInterval( FIRE_SPEED ) ;
+#define FIRE_MAX_SPEED 15  // lower value for faster
+#define FIRE_MIN_SPEED 100
+    taskLedModeSelect.setInterval( map( yprZ, 0, 90, FIRE_MIN_SPEED, FIRE_MAX_SPEED )) ;
+    taskGetDMPData.enableIfNot() ;
+
 
     // Cylon / KITT / Larson scanner with fading tail and slowly changing color
   } else if ( strcmp(routines[ledMode], "cylon") == 0 ) {
@@ -252,23 +258,31 @@ void ledModeSelect() {
     taskLedModeSelect.setInterval( CYLON_SPEED ) ;
     taskGetDMPData.enableIfNot() ;
 
+
     // Cylon / KITT / Larson scanner with 4 "movers"
   } else if ( strcmp(routines[ledMode], "cylonmulti") == 0 ) {
     cylonMulti() ;
+    FastLED.setBrightness( MAX_BRIGHT ) ;
     taskLedModeSelect.setInterval( CYLON_SPEED ) ;
     taskGetDMPData.disable() ;
 
     // Fade glitter
   } else if ( strcmp(routines[ledMode], "fglitter") == 0 ) {
     fadeGlitter() ;
-    taskLedModeSelect.setInterval( FADEGLITTER_SPEED ) ;
-    taskGetDMPData.disable() ;
+    //    taskLedModeSelect.setInterval( FADEGLITTER_SPEED ) ;
+    taskLedModeSelect.setInterval( map( constrain( activityLevel(), 0, 4000), 0, 4000, 20, 5 )) ;
+    taskGetDMPData.enableIfNot() ;
+    FastLED.setBrightness( MAX_BRIGHT ) ;
+
 
     //  Disco glitter
   } else if ( strcmp(routines[ledMode], "dglitter") == 0 ) {
     discoGlitter() ;
-    taskLedModeSelect.setInterval( DISCOGLITTER_SPEED ) ;
-    taskGetDMPData.disable() ;
+    //    taskLedModeSelect.setInterval( DISCOGLITTER_SPEED ) ;
+    taskLedModeSelect.setInterval( map( constrain( activityLevel(), 0, 4000), 0, 4000, 40, 5 )) ;
+    taskGetDMPData.enableIfNot() ;
+    FastLED.setBrightness( MAX_BRIGHT ) ;
+
 
     // With thanks to Hans for the strobe idea https://www.tweaking4all.nl/hardware/arduino/adruino-led-strip-effecten/#strobe
   } else if ( strcmp(routines[ledMode], "strobe") == 0 ) {
@@ -279,6 +293,8 @@ void ledModeSelect() {
   } else if ( strcmp(routines[ledMode], "flashbpm") == 0 ) {
     strobe( 130, 2 ) ;
     taskGetDMPData.enableIfNot() ;
+    FastLED.setBrightness( MAX_BRIGHT ) ;
+
 
     // Black - off
   } else if ( strcmp(routines[ledMode], "black") == 0 ) {
@@ -286,6 +302,7 @@ void ledModeSelect() {
     FastLED.show();
     taskLedModeSelect.setInterval( 500 ) ;  // long because nothing is going on anyways.
     taskGetDMPData.disable() ;
+
 
   } else if ( strcmp(routines[ledMode], "pulse") == 0 ) {
     pulse() ;
@@ -310,17 +327,20 @@ void ledModeSelect() {
     racingLeds() ;
     taskLedModeSelect.setInterval( 8 ) ;
     taskGetDMPData.disable() ;
+    FastLED.setBrightness( MAX_BRIGHT ) ;
 
   } else if ( strcmp(routines[ledMode], "wave") == 0 ) {
     waveYourArms() ;
     taskLedModeSelect.setInterval( 15 ) ;
     taskGetDMPData.enableIfNot() ;
-    
+
   } else if ( strcmp(routines[ledMode], "shakeit") == 0 ) {
     shakeIt() ;
     taskLedModeSelect.setInterval( 10 ) ;
     taskGetDMPData.enableIfNot() ;
-    
+    FastLED.setBrightness( MAX_BRIGHT ) ;
+
+
   } else if ( strcmp(routines[ledMode], "strobe2") == 0 ) {
     strobe2() ;
     taskLedModeSelect.setInterval( 10 ) ;

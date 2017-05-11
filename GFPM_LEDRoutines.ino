@@ -1,3 +1,6 @@
+#define MAX_NEG_ACCEL -3000
+#define MAX_POS_ACCEL 3000
+
 void FillLEDsFromPaletteColors() {
   static uint8_t startIndex = 0;  // initialize at start
   static byte flowDir = 1 ;
@@ -15,38 +18,46 @@ void FillLEDsFromPaletteColors() {
   uint8_t colorIndex = startIndex ;
 
   for ( int i = 0; i < NUM_LEDS; i++) {
-    leds[i] = ColorFromPalette( palettes[ledMode], colorIndex, BRIGHTNESS, LINEARBLEND);
+    leds[i] = ColorFromPalette( palettes[ledMode], colorIndex, MAX_BRIGHT, NOBLEND );
     colorIndex += STEPS;
   }
   addGlitter(80);
+
+  FastLED.setBrightness( map( constrain(aaRealZ, 0, MAX_POS_ACCEL), 0, MAX_POS_ACCEL, MAX_BRIGHT, 40 )) ;
 
   FastLED.show();
 }
 
 void addGlitter( fract8 chanceOfGlitter)
 {
-  if ( random8() < chanceOfGlitter) {
-    leds[ random16(NUM_LEDS) ] += CRGB::White;
+  for ( int i = 0 ; i < 4 ; i++ ) {
+    if ( random8() < chanceOfGlitter) {
+      leds[ random16(NUM_LEDS) ] += CRGB::White;
+    }
   }
 }
 
+/*
 // Not used anywhere, but feel free to replace addGlitter with addColorGlitter in FillLEDsFromPaletteColors() above
 void addColorGlitter( fract8 chanceOfGlitter)
 {
-  if ( random8() < chanceOfGlitter) {
-    leds[ random16(NUM_LEDS) ] = CHSV( random8(), 255, 255);
+  for ( int i = 0 ; i < 4 ; i++ ) {
+    if ( random8() < chanceOfGlitter) {
+      leds[ random16(NUM_LEDS) ] = CHSV( random8(), 255, MAX_BRIGHT);
+    }
   }
 }
+*/
 
 void fadeGlitter() {
   addGlitter(90);
   FastLED.show();
-  fadeall(250);
+  fadeall(200);
 }
 
 void discoGlitter() {
   fill_solid(leds, NUM_LEDS, CRGB::Black);
-  addGlitter(90);
+  addGlitter(map( constrain( activityLevel(), 0, 3000), 0, 3000, 70, 255 ));
   FastLED.show();
 }
 
@@ -59,7 +70,7 @@ void cylon() {
   static uint8_t ledPosAdder = 1 ;
   static uint8_t ledPos = 0;
 
-  leds[ledPos] = CHSV( map( yprX, 0, 360, STARTHUE, ENDHUE ) , 255, 255);
+  leds[ledPos] = CHSV( map( yprX, 0, 360, STARTHUE, ENDHUE ) , 255, MAX_BRIGHT);
 
   ledPos += ledPosAdder ;
   if ( ledPos == 0 or ledPos == NUM_LEDS ) {
@@ -68,7 +79,7 @@ void cylon() {
   }
 
   FastLED.show();
-  fadeall(230);
+  fadeall(150);
 }
 
 #define POS1 0
@@ -82,7 +93,7 @@ void cylonMulti() {
   static byte hue = 0 ;
 
   for (int i = 0; i < 4; i++) {
-    leds[ledPos[i]] = CHSV(40 * i, 255, 255);
+    leds[ledPos[i]] = CHSV(40 * i, 255, MAX_BRIGHT);
     // Turn around at ends:
     if ( (ledPos[i] + ledAdd[i] == 0) or (ledPos[i] + ledAdd[i] == NUM_LEDS) ) {
       ledAdd[i] *= -1 ;
@@ -151,9 +162,12 @@ void strobe( int bpm, uint8_t numStrobes ) {
 
 void strobe2() {
   if ( activityLevel() > S_SENSITIVITY ) {
-    fill_solid(leds, NUM_LEDS, CHSV( map( yprX, 0, 360, 0, 255 ), 255, 255)); // yaw for color
+    fill_solid(leds, NUM_LEDS, CHSV( map( yprX, 0, 360, 0, 255 ), 255, MAX_BRIGHT)); // yaw for color
+    //  } if ( S_SENSITIVITY > activityLevel() > 1000 ) {
+    //    fadeall(250);
   } else {
-    fill_solid(leds, NUM_LEDS, CRGB::Black);
+    //    fill_solid(leds, NUM_LEDS, CRGB::Black);
+    fadeall(150);
   }
   FastLED.show();
 }
@@ -163,7 +177,7 @@ void pulse() {
   uint8_t endPixelPos = startPixelPos + 20 ;
   uint8_t middlePixelPos = endPixelPos - round( (endPixelPos - startPixelPos) / 2 ) ;
 
-  uint8_t hue = map( yprX, 0, 360, 0, 255 ) ;
+  uint8_t hue = map( yprX, 0, 360, 0, MAX_BRIGHT ) ;
 
   static int brightness = 0;
   static int brightAdder = 15;
@@ -238,7 +252,7 @@ void pulse2() {
     endP = constrain(endP, 0, NUM_LEDS - 1) ;
 
     brightness += bAdder ;
-    brightness = constrain(brightness, 0, 255) ;
+    brightness = constrain(brightness, 0, MAX_BRIGHT) ;
     if ( brightness >= 250 ) {
       bAdder = -10 ;
       //        Serial.print(" bAdder: ") ;
@@ -291,7 +305,7 @@ void pulse_static() {
     endP = constrain(endP, 0, NUM_LEDS - 1) ;
 
     brightness += bAdder ;
-    brightness = constrain(brightness, 0, 255) ;
+    brightness = constrain(brightness, 0, MAX_BRIGHT) ;
     if ( brightness >= 250 ) {
       bAdder = -5 ;
     }
@@ -354,7 +368,7 @@ void pulse_suck() {
     endPixelPos = constrain(endPixelPos, 0, NUM_LEDS - 1) ;
 
     brightness += brightnessAdder ;
-    brightness = constrain(brightness, 0, 255) ;
+    brightness = constrain(brightness, 0, MAX_BRIGHT) ;
     if ( brightness >= 250 ) {
       brightnessAdder = -5 ;
     }
@@ -462,10 +476,11 @@ void racingLeds() {
 
 #define MAX_NEG_ACCEL -5000
 #define MAX_POS_ACCEL 5000
+#define MIN_BRIGHT 20
 
 void waveYourArms() {
   // Use yaw for color; use accelZ for brightness
-  fill_solid(leds, NUM_LEDS, CHSV( map( yprX, 0, 360, 0, 255 ) , 255, map( constrain(aaRealZ, MAX_NEG_ACCEL, MAX_POS_ACCEL), MAX_NEG_ACCEL, MAX_POS_ACCEL, 20, 255 )) );
+  fill_solid(leds, NUM_LEDS, CHSV( map( yprX, 0, 360, 0, 255 ) , 255, map( constrain(aaRealZ, MAX_NEG_ACCEL, MAX_POS_ACCEL), MAX_NEG_ACCEL, MAX_POS_ACCEL, MIN_BRIGHT, MAX_BRIGHT )) );
   FastLED.show();
 }
 
@@ -475,14 +490,14 @@ void waveYourArms() {
 void shakeIt() {
   int startLed ;
 
-  if ( isMpuDown() ) {
+  if ( isMpuDown() ) {  // Start near controller if down
     startLed = 0 ;
   } else if ( isMpuUp() ) {
     startLed = NUM_LEDS - 1 ;
   }
 
   if ( activityLevel() > SENSITIVITY ) {
-    leds[startLed] = CHSV( map( yprX, 0, 360, 0, 255 ), 255, 255); // yaw for color
+    leds[startLed] = CHSV( map( yprX, 0, 360, 0, 255 ), 255, MAX_BRIGHT); // yaw for color
   } else {
     leds[startLed] = CHSV(0, 0, 0); // black
     //    leds[] = leds[NUM_LEDS - 1] ;  // uncomment for circular motion
