@@ -12,12 +12,12 @@
 
 #include <FastLED.h>
 #include <TaskScheduler.h>
-#include "I2Cdev.h"
-#include "MPU6050_6Axis_MotionApps20.h"
+#include <I2Cdev.h>
+#include <MPU6050_6Axis_MotionApps20.h>
 //#include <EEPROM.h>  // I want to write the pallettes to EEPROM eventually
 
 
-// #define DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
 #define DEBUG_PRINT(x)       Serial.print (x)
@@ -30,7 +30,7 @@
 #endif
 
 #define LED_PIN     12   // which pin your Neopixels are connected to
-#define NUM_LEDS    120   // how many LEDs you have
+#define NUM_LEDS    90   // how many LEDs you have
 #define MAX_BRIGHT  255  // 0-255, higher number is brighter. 
 #define SATURATION  255   // 0-255, 0 is pure white, 255 is fully saturated color
 #define STEPS       2   // How wide the bands of color are.  1 = more like a gradient, 10 = more like stripes
@@ -44,11 +44,13 @@
 #define CYLON_SPEED 25  // Cylon Speed; delay in millseconds. Higher delay = slower movement.
 #define FADEGLITTER_SPEED 10  // delay in millseconds. Higher delay = slower movement.
 #define DISCOGLITTER_SPEED 20  // delay in millseconds. Higher delay = slower movement.
-
+#define WHITESTRIPE_SPEED 5   // how fast white stripe goes
 
 CRGB leds[NUM_LEDS];
-byte ledMode = 10 ; // Which mode do we start with
 unsigned long lastButtonChange = 0; // button debounce timer.
+
+
+byte ledMode = 12 ; // Which mode do we start with
 
 const char *routines[] = {
   "rb",         // 0
@@ -63,22 +65,22 @@ const char *routines[] = {
   "cylonmulti", // 9
   "fglitter",   // 10
   "dglitter",   // 11
-  "strobe",     // 12
-  "flashbpm",   // 13
-  "pulse",      // 14
-  "pulsestatic",// 15
-  "racers",     // 16
-  "wave",       // 17
-  "shakeit",    // 18
-  "strobe2",    // 19
-  "black"       // 20
+  "pulse2",     // 12
+  "pulsestatic",// 13
+  "racers",     // 14
+  "wave",       // 15
+  "shakeit",    // 16
+  "strobe2",    // 17
+  "black"       // 18
 };
 #define NUMROUTINES (sizeof(routines)/sizeof(char *)) //array size  
 
 /* Scheduler stuff */
 void ledModeSelect() ; // prototype method
+void whiteStripe() ; // prototype method
 Scheduler runner;
 Task taskLedModeSelect( LEDMODE_SELECT_DEFAULT_INTERVAL, TASK_FOREVER, &ledModeSelect); // routine which adds/removes tasks according to ledmode
+Task taskWhiteStripe( WHITESTRIPE_SPEED, TASK_FOREVER, &whiteStripe); // routine which adds/removes tasks according to ledmode
 //#define _TASK_SLEEP_ON_IDLE_RUN
 
 // ==================================================================== //
@@ -145,6 +147,8 @@ void setup() {
   runner.init();
   runner.addTask(taskLedModeSelect);
   taskLedModeSelect.enable() ;
+  runner.addTask(taskWhiteStripe);
+  taskWhiteStripe.enable() ;
 
   // ==================================================================== //
   // ==================================================================== //
@@ -201,8 +205,8 @@ void setup() {
   taskGetYPRAccel.enable() ;
 
 #ifdef DEBUG
-  runner.addTask(taskPrintDebugging);
-  taskPrintDebugging.enable() ;
+  //  runner.addTask(taskPrintDebugging);
+  //  taskPrintDebugging.enable() ;
 #endif
 
 }
@@ -213,18 +217,19 @@ void setup() {
 
 void loop() {
 
-#ifdef DEBUG
-  static long lastHeartbeat = millis() ;
-  static unsigned int heartBeatNumber = 0 ;
+  /*
+    #ifdef DEBUG
+    static long lastHeartbeat = millis() ;
+    static unsigned int heartBeatNumber = 0 ;
 
-  if ( millis() - lastHeartbeat > HEARTBEAT_INTERVAL ) {
-    DEBUG_PRINT(F(".")) ;
-    DEBUG_PRINTLN(heartBeatNumber) ;
-    lastHeartbeat = millis() ;
-    heartBeatNumber++ ;
-  }
-#endif
-
+    if ( millis() - lastHeartbeat > HEARTBEAT_INTERVAL ) {
+      DEBUG_PRINT(F(".")) ;
+      DEBUG_PRINTLN(heartBeatNumber) ;
+      lastHeartbeat = millis() ;
+      heartBeatNumber++ ;
+    }
+    #endif
+  */
   runner.execute();
 }
 
@@ -238,6 +243,8 @@ void ledModeSelect() {
     FillLEDsFromPaletteColors() ;
     taskLedModeSelect.setInterval( PALETTE_SPEED ) ;
     taskGetDMPData.enableIfNot() ;
+    taskWhiteStripe.enableIfNot() ;
+
     // Uses setBrightness
 
 
@@ -250,6 +257,7 @@ void ledModeSelect() {
 #define FIRE_MIN_SPEED 100
     taskLedModeSelect.setInterval( map( yprZ, 0, 90, FIRE_MIN_SPEED, FIRE_MAX_SPEED )) ;
     taskGetDMPData.enableIfNot() ;
+    taskWhiteStripe.disable() ;
 
 
     // Cylon / KITT / Larson scanner with fading tail and slowly changing color
@@ -257,6 +265,7 @@ void ledModeSelect() {
     cylon() ;
     taskLedModeSelect.setInterval( CYLON_SPEED ) ;
     taskGetDMPData.enableIfNot() ;
+    taskWhiteStripe.enableIfNot() ;
 
 
     // Cylon / KITT / Larson scanner with 4 "movers"
@@ -265,6 +274,7 @@ void ledModeSelect() {
     FastLED.setBrightness( MAX_BRIGHT ) ;
     taskLedModeSelect.setInterval( CYLON_SPEED ) ;
     taskGetDMPData.disable() ;
+    taskWhiteStripe.enableIfNot() ;
 
     // Fade glitter
   } else if ( strcmp(routines[ledMode], "fglitter") == 0 ) {
@@ -273,6 +283,7 @@ void ledModeSelect() {
     taskLedModeSelect.setInterval( map( constrain( activityLevel(), 0, 4000), 0, 4000, 20, 5 )) ;
     taskGetDMPData.enableIfNot() ;
     FastLED.setBrightness( MAX_BRIGHT ) ;
+    taskWhiteStripe.enableIfNot() ;
 
 
     //  Disco glitter
@@ -289,11 +300,13 @@ void ledModeSelect() {
     //    setInterval is done in the subroutine itself
     strobe( 0, 10 ) ;
     taskGetDMPData.enableIfNot() ;
+    taskWhiteStripe.enableIfNot() ;
 
   } else if ( strcmp(routines[ledMode], "flashbpm") == 0 ) {
     strobe( 130, 2 ) ;
     taskGetDMPData.enableIfNot() ;
     FastLED.setBrightness( MAX_BRIGHT ) ;
+    taskWhiteStripe.enableIfNot() ;
 
 
     // Black - off
@@ -302,26 +315,27 @@ void ledModeSelect() {
     FastLED.show();
     taskLedModeSelect.setInterval( 500 ) ;  // long because nothing is going on anyways.
     taskGetDMPData.disable() ;
+    taskWhiteStripe.disable() ;
 
+    /*
 
-  } else if ( strcmp(routines[ledMode], "pulse") == 0 ) {
-    pulse() ;
-    taskLedModeSelect.setInterval( 20 ) ;
+      } else if ( strcmp(routines[ledMode], "pulse") == 0 ) {
+        pulse() ;
+        taskLedModeSelect.setInterval( 15 ) ;
+        taskGetDMPData.disable() ;
+
+    */
+  } else if ( strcmp(routines[ledMode], "pulse2") == 0 ) {
+    pulse2() ;
+    taskLedModeSelect.setInterval( 10 ) ;
     taskGetDMPData.disable() ;
+
 
   } else if ( strcmp(routines[ledMode], "pulsestatic") == 0 ) {
     pulse_static() ;
-    taskLedModeSelect.setInterval( 25 ) ;
+    taskLedModeSelect.setInterval( 8 ) ;
     taskGetDMPData.disable() ;
 
-    /*
-      } else if ( strcmp(routines[ledMode], "pulse2") == 0 ) {
-        pulse2() ;
-
-        // Caterpillar walk
-      } else if ( strcmp(routines[ledMode], "pulsesuck") == 0 ) {
-        pulse_suck() ;
-    */
 
   } else if ( strcmp(routines[ledMode], "racers") == 0 ) {
     racingLeds() ;
@@ -339,7 +353,7 @@ void ledModeSelect() {
     taskLedModeSelect.setInterval( 10 ) ;
     taskGetDMPData.enableIfNot() ;
     FastLED.setBrightness( MAX_BRIGHT ) ;
-
+    taskWhiteStripe.disable() ;
 
   } else if ( strcmp(routines[ledMode], "strobe2") == 0 ) {
     strobe2() ;

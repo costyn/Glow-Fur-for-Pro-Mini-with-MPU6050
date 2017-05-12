@@ -38,15 +38,15 @@ void addGlitter( fract8 chanceOfGlitter)
 }
 
 /*
-// Not used anywhere, but feel free to replace addGlitter with addColorGlitter in FillLEDsFromPaletteColors() above
-void addColorGlitter( fract8 chanceOfGlitter)
-{
+  // Not used anywhere, but feel free to replace addGlitter with addColorGlitter in FillLEDsFromPaletteColors() above
+  void addColorGlitter( fract8 chanceOfGlitter)
+  {
   for ( int i = 0 ; i < 4 ; i++ ) {
     if ( random8() < chanceOfGlitter) {
       leds[ random16(NUM_LEDS) ] = CHSV( random8(), 255, MAX_BRIGHT);
     }
   }
-}
+  }
 */
 
 void fadeGlitter() {
@@ -79,7 +79,7 @@ void cylon() {
   }
 
   FastLED.show();
-  fadeall(150);
+  fadeall(245);
 }
 
 #define POS1 0
@@ -90,14 +90,16 @@ void cylon() {
 void cylonMulti() {
   static uint8_t ledPos[] = {POS1, POS2, POS3, POS4}; // Starting position
   static int ledAdd[] = {1, 1, 1, 1}; // Starting direction
-  static byte hue = 0 ;
 
   for (int i = 0; i < 4; i++) {
-    leds[ledPos[i]] = CHSV(40 * i, 255, MAX_BRIGHT);
     // Turn around at ends:
     if ( (ledPos[i] + ledAdd[i] == 0) or (ledPos[i] + ledAdd[i] == NUM_LEDS) ) {
       ledAdd[i] *= -1 ;
     }
+    ledPos[i] += ledAdd[i] ;
+
+    leds[ledPos[i]] = CHSV(40 * i, 255, MAX_BRIGHT);
+
     /*    Circular:
            if ( ledPos[i] + ledAdd[i] < 0) {
           ledPos[i] = NUM_LEDS - 1 ;
@@ -163,16 +165,14 @@ void strobe( int bpm, uint8_t numStrobes ) {
 void strobe2() {
   if ( activityLevel() > S_SENSITIVITY ) {
     fill_solid(leds, NUM_LEDS, CHSV( map( yprX, 0, 360, 0, 255 ), 255, MAX_BRIGHT)); // yaw for color
-    //  } if ( S_SENSITIVITY > activityLevel() > 1000 ) {
-    //    fadeall(250);
   } else {
-    //    fill_solid(leds, NUM_LEDS, CRGB::Black);
     fadeall(150);
   }
   FastLED.show();
 }
 
-void pulse() {
+/*
+  void pulse() {
   static uint8_t startPixelPos = 0 ;
   uint8_t endPixelPos = startPixelPos + 20 ;
   uint8_t middlePixelPos = endPixelPos - round( (endPixelPos - startPixelPos) / 2 ) ;
@@ -202,37 +202,30 @@ void pulse() {
     }
   }
 
-  fill_solid(leds, NUM_LEDS, CRGB::Black);
+  //  fill_solid(leds, NUM_LEDS, CRGB::Black);
   fill_gradient(leds, startPixelPos, CHSV(hue, 255, 0), middlePixelPos, CHSV(hue, 255, brightness), SHORTEST_HUES);
   fill_gradient(leds, middlePixelPos, CHSV(hue, 255, brightness), endPixelPos, CHSV(hue, 255, 0), SHORTEST_HUES);
   FastLED.show();
-}
+  }
+*/
 
+#define MIN_BRIGHT 10
 
 void pulse2() {
   int middle ;
-  int startP ;
+  static int startP ;
   static int endP ;
-  uint8_t hue ;
-  int brightness;
-  int bAdder ;
-  static bool flowDir = 1; // remember flowDir between calls to pulse2
+  static uint8_t hue ;
+  static int brightness = 0 ;
+  static int bAdder = 1;
+  static bool flowDir = 1;
+  static bool sequenceEnd = true ;
 
-  fill_solid(leds, NUM_LEDS, CRGB::Black);
-  //  taskLedModeSelect.delay(random16(100, 1000)) ;
-
-  hue = random8(0, 60) ;
-  brightness = 1 ;
-  bAdder = 15 ;
-  flowDir = ! flowDir ; // flip it!
-
-  if ( flowDir ) {
-    endP = random8(30, 70);
-  } else {
-    startP = random8(30, 70);
+  if ( brightness < MIN_BRIGHT ) {
+    sequenceEnd = true ;
   }
 
-  while ( brightness > 0 ) {
+  if ( not sequenceEnd ) {
     if ( flowDir ) {
       endP-- ;
       startP = endP - 20 ;
@@ -242,7 +235,7 @@ void pulse2() {
     }
 
     if ( startP == 89 or endP == 1 ) {
-      break ;
+      sequenceEnd = true ;
     }
 
     middle = endP - round( (endP - startP) / 2 ) ;
@@ -255,20 +248,30 @@ void pulse2() {
     brightness = constrain(brightness, 0, MAX_BRIGHT) ;
     if ( brightness >= 250 ) {
       bAdder = -10 ;
-      //        Serial.print(" bAdder: ") ;
-      //        Serial.print(bAdder) ;
-      //        brightness += bAdder ;
     }
 
-    fill_solid(leds, NUM_LEDS, CRGB::Black);
     fill_gradient(leds, startP, CHSV(hue, 255, 0), middle, CHSV(hue, 255, brightness), SHORTEST_HUES);
     fill_gradient(leds, middle, CHSV(hue, 255, brightness), endP, CHSV(hue, 255, 0), SHORTEST_HUES);
-    FastLED.show();
-    //    taskLedModeSelect.delay(25);
+
+  } else {
+
+    fill_solid(leds, NUM_LEDS, CRGB::Black);
+    hue = random8(0, 60) ;
+    brightness = MIN_BRIGHT ;
+    bAdder = 15 ;
+    flowDir = ! flowDir ; // flip it!
+    sequenceEnd = false ;
+
+    if ( flowDir ) {
+      endP = random8(30, 70);
+    } else {
+      startP = random8(30, 70);
+    }
   }
+
+  FastLED.show();
 }
 
-#define MIN_BRIGHT 10
 
 void pulse_static() {
   int middle ;
@@ -329,57 +332,7 @@ void pulse_static() {
   }
 }
 
-void pulse_suck() {
-  int middle ;
-  int startPixelPos ;
-  int endPixelPos ;
-  uint8_t hue ;
-  int brightness;
-  int brightnessAdder ;
-  static int lastPixelEndPos ;
 
-  fill_solid(leds, NUM_LEDS, CRGB::Black);
-  taskLedModeSelect.delay(random16(200, 700)) ;
-
-  hue = random8(0, 60) ;
-  brightness = MIN_BRIGHT + 1 ;
-  brightnessAdder = 10 ;
-  startPixelPos = lastPixelEndPos ;
-  endPixelPos = startPixelPos ;
-
-  while ( brightness > MIN_BRIGHT ) {
-    if ( brightnessAdder < 0 and startPixelPos < endPixelPos ) {
-      startPixelPos += 2 ;
-      if ( startPixelPos == endPixelPos ) {
-        lastPixelEndPos = startPixelPos ;
-        if ( lastPixelEndPos > 70 ) {
-          lastPixelEndPos = 0 ;
-        }
-        break ;
-      }
-    }
-    if ( brightnessAdder > 0  and ( endPixelPos - startPixelPos < 20 ) ) {
-      endPixelPos += 2 ;
-    }
-    middle = endPixelPos - round( (endPixelPos - startPixelPos) / 2 ) ;
-
-    startPixelPos = constrain(startPixelPos, 0, NUM_LEDS - 1) ;
-    middle = constrain(middle, 0, NUM_LEDS - 1) ;
-    endPixelPos = constrain(endPixelPos, 0, NUM_LEDS - 1) ;
-
-    brightness += brightnessAdder ;
-    brightness = constrain(brightness, 0, MAX_BRIGHT) ;
-    if ( brightness >= 250 ) {
-      brightnessAdder = -5 ;
-    }
-
-    fill_solid(leds, NUM_LEDS, CRGB::Black);
-    fill_gradient(leds, startPixelPos, CHSV(hue, 255, 0), middle, CHSV(hue, 255, brightness), SHORTEST_HUES);
-    fill_gradient(leds, middle, CHSV(hue, 255, brightness), endPixelPos, CHSV(hue, 255, 0), SHORTEST_HUES);
-    FastLED.show();
-    taskLedModeSelect.delay(25);
-  }
-}
 
 
 #define COOLING  55
@@ -515,3 +468,46 @@ void shakeIt() {
 
   FastLED.show();
 }
+
+#define STRIPE_LENGTH 5
+
+void whiteStripe() {
+  static CRGB patternCopy[STRIPE_LENGTH] ;
+  static int startLed = 0 ;
+
+  if( taskWhiteStripe.getInterval() != WHITESTRIPE_SPEED ) {
+    taskWhiteStripe.setInterval( WHITESTRIPE_SPEED ) ;
+  }
+
+  if ( startLed == 0 ) {
+    for (int i = 0; i < STRIPE_LENGTH ; i++ ) {
+      patternCopy[i] = leds[i];
+    }
+  }
+
+  // 36 40   44 48 52 56   60
+  
+  leds[startLed] = patternCopy[0] ;
+  for (int i = 0; i < STRIPE_LENGTH - 2; i++ ) {
+    patternCopy[i] = patternCopy[i + 1] ;
+  }
+  patternCopy[STRIPE_LENGTH - 1] = leds[startLed + STRIPE_LENGTH] ;
+
+  fill_gradient(leds, startLed + 1, CHSV(0, 0, 255), startLed + STRIPE_LENGTH, CHSV(0, 0, 255), SHORTEST_HUES);
+
+  startLed++ ;
+
+  if ( startLed + STRIPE_LENGTH == NUM_LEDS - 1) { // LED nr 90 is index 89
+    for (int i = startLed; i < startLed + STRIPE_LENGTH; i++ ) {
+      leds[i] = patternCopy[i];
+    }
+    
+    startLed = 0 ;
+    taskWhiteStripe.setInterval(random16(4000, 10000)) ;
+  }
+
+  FastLED.show();
+}
+
+
+
