@@ -19,3 +19,25 @@ Fritzing circuit files soon to follow
 * https://github.com/FastLED/FastLED
 * https://github.com/arkhipenko/TaskScheduler
 * https://github.com/jrowberg/i2cdevlib
+
+## Available Routines 
+
+* Rainbow from FastLED Palette (moving pattern)
+* Rainbow Stripe from FastLED Palette (moving pattern)
+* Ocean colors from FastLED Palette (moving pattern)
+* Heat colors from FastLED Palette (moving pattern)
+* Party colors from FastLED Palette (moving pattern)
+* Cloud colors from FastLED Palette (moving pattern)
+* Forest colors  from FastLED Palette (moving pattern)
+* Fire2012 - changes motion speed in reference to MPU pitch; split in 2 to flow "down" both sides of the LED strip from the middle.
+* Cylon - Larson scanner/cylon; changes colors in reference to MPU yaw
+* Cylon Multi - 4 "scanners" moving simultaniously - not interactive yet
+* Fade Glitter - sparkles/glitter that fades out slowly. More MPU movement = faster/more glitter
+* Disco Glitter - sparkles/glitter that winks out immediately. More MPU movement = faster/more glitter
+* Pulse2 - streamers of light slide down from middle to the sides
+* Pulse Static - A pulse appears on random spots on the strip, fading in and out quickly
+* Racers - 4 leds pixels race the strip, randomly speeding up and slowing down, overtaking each other
+* Wave - Color filled strip changes brightness in reference to acceleration, color in reference to yaw
+* Shake It - "shake out" colored pixels and streamers from ends of the strip by moving the MPU vigorously
+* Strobe2 - Flashes all leds in a particular color above a certain acceleration threshhold, color in reference to yaw
+* Black - no pattern, no reactions. Standby state
