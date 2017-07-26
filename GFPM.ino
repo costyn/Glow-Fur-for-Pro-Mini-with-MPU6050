@@ -14,9 +14,14 @@
 #include <TaskScheduler.h>
 #include <I2Cdev.h>
 #include <MPU6050_6Axis_MotionApps20.h>
-//#include <EEPROM.h>  // I want to write the pallettes to EEPROM eventually
 
+#define DEFAULT_LED_MODE 0
 
+#if FASTLED_VERSION < 3001000
+#error "Requires FastLED 3.1 or later; check github for latest code."
+#endif
+
+// Uncomment for debug output to Serial.
 //#define DEBUG
 
 #ifdef DEBUG
@@ -30,8 +35,8 @@
 #endif
 
 #define LED_PIN     12   // which pin your Neopixels are connected to
-#define NUM_LEDS    90   // how many LEDs you have
-#define MAX_BRIGHT  255  // 0-255, higher number is brighter. 
+#define NUM_LEDS    100   // how many LEDs you have
+#define MAX_BRIGHT  150  // 0-255, higher number is brighter. 
 #define SATURATION  255   // 0-255, 0 is pure white, 255 is fully saturated color
 #define STEPS       2   // How wide the bands of color are.  1 = more like a gradient, 10 = more like stripes
 #define BUTTON_PIN  3   // button is connected to pin 3 and GND

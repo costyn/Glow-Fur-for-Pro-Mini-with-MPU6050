@@ -22,13 +22,16 @@ Fritzing circuit files soon to follow
 
 ## Available Routines 
 
-* Rainbow from FastLED Palette (moving pattern)
-* Rainbow Stripe from FastLED Palette (moving pattern)
-* Ocean colors from FastLED Palette (moving pattern)
-* Heat colors from FastLED Palette (moving pattern)
-* Party colors from FastLED Palette (moving pattern)
-* Cloud colors from FastLED Palette (moving pattern)
-* Forest colors  from FastLED Palette (moving pattern)
+FastLED color palettes (moving patterns - pattern changes direction according to MPU pitch angle):
+* Rainbow 
+* Rainbow Stripe
+* Ocean
+* Heat
+* Party
+* Cloud
+* Forest
+
+Other routines:
 * Fire2012 - changes motion speed in reference to MPU pitch; split in 2 to flow "down" both sides of the LED strip from the middle.
 * Cylon - Larson scanner/cylon; changes colors in reference to MPU yaw
 * Cylon Multi - 4 "scanners" moving simultaniously - not interactive yet
